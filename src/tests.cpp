@@ -7,7 +7,11 @@ int my_strlen(char *str) {
      */
 
     // IMPLEMENT YOUR CODE HERE
-    return 0;
+    int len = 0;
+    while (str[len] != '\0') {
+        ++len;
+    }
+    return len; 
 }
 
 
@@ -19,9 +23,18 @@ void my_strcat(char *str_1, char *str_2) {
      */
 
     // IMPLEMENT YOUR CODE HERE
+    int i = 0;
+    while (str_1[i] != '\0') {
+        i++; 
+    }
+    int j = 0;
+    while (str_2[j] != '\0') {   
+        str_1[i] = str_2[j];     
+        i++;
+        j++;
+    }
+    str_1[i] = '\0';  
 }
-
-
 // 练习3，实现库函数strstr
 char* my_strstr(char *s, char *p) {
     /**
@@ -31,9 +44,17 @@ char* my_strstr(char *s, char *p) {
      */
 
     // IMPLEMENT YOUR CODE HERE
-    return 0;
+    for (int i = 0; s[i] != '\0'; i++) {          
+        int j = 0;
+        while (s[i + j] == p[j] && p[j] != '\0') { 
+            j++;
+        }
+        if (p[j] == '\0') {                        
+            return s + i;                          
+        }
+    }
+    return 0;                                     
 }
-
 
 /**
  * ================================= 背景知识 ==================================
@@ -97,6 +118,15 @@ void rgb2gray(float *in, float *out, int h, int w) {
 
     // IMPLEMENT YOUR CODE HERE
     // ...
+    for (int y = 0; y < h; y++) {           
+        for (int x = 0; x < w; x++) {      
+            int idx = y * w + x;            
+            float R = in[idx * 3 + 0];      
+            float G = in[idx * 3 + 1];     
+            float B = in[idx * 3 + 2];     
+            out[idx] = 0.1140 * B + 0.5870 * G + 0.2989 * R;  
+        }
+    }
 }
 
 // 练习5，实现图像处理算法 resize：缩小或放大图像
@@ -198,6 +228,40 @@ void resize(float *in, float *out, int h, int w, int c, float scale) {
 
     int new_h = h * scale, new_w = w * scale;
     // IMPLEMENT YOUR CODE HERE
+     for (int y = 0; y < new_h; y++) {                 // 遍历目标图每一行
+        for (int x = 0; x < new_w; x++) {             // 遍历目标图每一列
+            // 1. 目标坐标 -> 源坐标（float）
+            float x0 = x / scale;
+            float y0 = y / scale;
+
+            // 2. 四个邻居的整数坐标
+            int x1 = (int)x0, y1 = (int)y0;           // 左上（下取整）
+            int x2 = x1 + 1, y2 = y1 + 1;             // 右下
+
+            // 3. 边界检查：邻居可能超出原图范围
+            if (x2 >= w) x2 = w - 1;
+            if (y2 >= h) y2 = h - 1;
+
+            // 4. 距离权重（小数部分）
+            float dx = x0 - x1;
+            float dy = y0 - y1;
+
+            // 5. 每个通道单独插值
+            for (int ch = 0; ch < c; ch++) {
+                float P11 = in[(y1 * w + x1) * c + ch];
+                float P21 = in[(y1 * w + x2) * c + ch];
+                float P12 = in[(y2 * w + x1) * c + ch];
+                float P22 = in[(y2 * w + x2) * c + ch];
+
+                float Q = P11 * (1 - dx) * (1 - dy)
+                        + P21 * dx * (1 - dy)
+                        + P12 * (1 - dx) * dy
+                        + P22 * dx * dy;
+
+                out[(y * new_w + x) * c + ch] = Q;
+            }
+        }
+    }
 
 }
 
@@ -221,4 +285,36 @@ void hist_eq(float *in, int h, int w) {
      */
 
     // IMPLEMENT YOUR CODE HERE
+    int N = h * w;                       // 像素总数
+
+    // 1. 统计直方图：hist[k] = 灰度值为 k 的像素个数
+    int hist[256] = {0};
+    for (int i = 0; i < N; i++) {
+        int v = (int)in[i];              // 像素是小数，取整数部分当灰度级
+        if (v < 0) v = 0;                // 保险起见做个边界限制
+        if (v > 255) v = 255;
+        hist[v]++;
+    }
+
+    // 2. 累积分布：cdf[k] = 灰度值 <= k 的像素总个数
+    int cdf[256] = {0};
+    int acc = 0;
+    for (int k = 0; k < 256; k++) {
+        acc += hist[k];                  // 一路累加
+        cdf[k] = acc;
+    }
+
+    // 3. 映射表：map[k] = 该灰度级均衡化后的新值
+    int map[256] = {0};
+    for (int k = 0; k < 256; k++) {
+        map[k] = (int)(255.0 * cdf[k] / N + 0.5);   // +0.5 是四舍五入
+    }
+
+    // 4. 用映射表改写原图
+    for (int i = 0; i < N; i++) {
+        int v = (int)in[i];
+        if (v < 0) v = 0;
+        if (v > 255) v = 255;
+        in[i] = map[v];                  // 查表替换
+    }
 }
